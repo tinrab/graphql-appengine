@@ -6,48 +6,80 @@ import (
 	"net/http"
 
 	"github.com/graphql-go/graphql"
-	"google.golang.org/appengine/log"
+	"google.golang.org/appengine"
 )
 
 var schema graphql.Schema
+var userType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "User",
+	Fields: graphql.Fields{
+		"id":   &graphql.Field{Type: graphql.String},
+		"name": &graphql.Field{Type: graphql.String},
+	},
+})
+var postType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Post",
+	Fields: graphql.Fields{
+		"id":       &graphql.Field{Type: graphql.String},
+		"userId":   &graphql.Field{Type: graphql.String},
+		"postedAt": &graphql.Field{Type: graphql.DateTime},
+		"content":  &graphql.Field{Type: graphql.String},
+	},
+})
+
+var rootMutation = graphql.NewObject(graphql.ObjectConfig{
+	Name: "RootMutation",
+	Fields: graphql.Fields{
+		"createUser": &graphql.Field{
+			Type: userType,
+			Args: graphql.FieldConfigArgument{
+				"name": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			},
+			Resolve: createUser,
+		},
+	},
+})
+
+var rootQuery = graphql.NewObject(graphql.ObjectConfig{
+	Name: "RootQuery",
+	Fields: graphql.Fields{
+		"user": &graphql.Field{
+			Type: userType,
+			Args: graphql.FieldConfigArgument{
+				"id": &graphql.ArgumentConfig{Type: graphql.String},
+			},
+			Resolve: queryUser,
+		},
+		"users": &graphql.Field{
+			Type:    graphql.NewList(userType),
+			Resolve: queryUsers,
+		},
+	},
+})
 
 func init() {
-	fields := graphql.Fields{
-		"hello": &graphql.Field{
-			Type: graphql.String,
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				return "world", nil
-			},
-		},
-	}
-	rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
-	schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
-	var err error
-	schema, err = graphql.NewSchema(schemaConfig)
-	if err != nil {
-		log.Errorf(nil, "%v", err)
-	}
-
+	schema, _ = graphql.NewSchema(graphql.SchemaConfig{
+		Query:    rootQuery,
+		Mutation: rootMutation,
+	})
 	http.HandleFunc("/", handler)
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	//ctx := appengine.NewContext(r)
+	ctx := appengine.NewContext(r)
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		responseError(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	params := graphql.Params{
+	resp := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: string(body),
-	}
-
-	resp := graphql.Do(params)
+		Context:       ctx,
+	})
 	if len(resp.Errors) > 0 {
 		responseError(w, fmt.Sprintf("%+v", resp.Errors), http.StatusBadRequest)
 		return
 	}
-
 	responseJSON(w, resp)
 }
