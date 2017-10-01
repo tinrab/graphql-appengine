@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/graphql-go/graphql"
 	"google.golang.org/appengine/datastore"
@@ -51,4 +52,37 @@ func queryUsers(params graphql.ResolveParams) (interface{}, error) {
 		}
 	}
 	return users, nil
+}
+
+func createPost(params graphql.ResolveParams) (interface{}, error) {
+	ctx := params.Context
+	content, _ := params.Args["content"].(string)
+	userID, _ := params.Args["userId"].(string)
+	post := &Post{UserID: userID, Content: content, CreatedAt: time.Now().UTC()}
+
+	key := datastore.NewIncompleteKey(ctx, "Post", nil)
+	if generatedKey, err := datastore.Put(ctx, key, post); err != nil {
+		return Post{}, err
+	} else {
+		post.ID = strconv.FormatInt(generatedKey.IntID(), 10)
+	}
+	return post, nil
+}
+
+func queryPostsByUser(params graphql.ResolveParams) (interface{}, error) {
+	ctx := params.Context
+	query := datastore.NewQuery("Post")
+	var posts []Post
+	user, ok := params.Source.(*User)
+	if ok {
+		query.Filter("UserID =", user.ID)
+		if keys, err := query.GetAll(ctx, &posts); err != nil {
+			return posts, err
+		} else {
+			for i, key := range keys {
+				posts[i].ID = strconv.FormatInt(key.IntID(), 10)
+			}
+		}
+	}
+	return posts, nil
 }

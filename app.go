@@ -15,15 +15,19 @@ var userType = graphql.NewObject(graphql.ObjectConfig{
 	Fields: graphql.Fields{
 		"id":   &graphql.Field{Type: graphql.String},
 		"name": &graphql.Field{Type: graphql.String},
+		"posts": &graphql.Field{
+			Type:    graphql.NewList(postType),
+			Resolve: queryPostsByUser,
+		},
 	},
 })
 var postType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Post",
 	Fields: graphql.Fields{
-		"id":       &graphql.Field{Type: graphql.String},
-		"userId":   &graphql.Field{Type: graphql.String},
-		"postedAt": &graphql.Field{Type: graphql.DateTime},
-		"content":  &graphql.Field{Type: graphql.String},
+		"id":        &graphql.Field{Type: graphql.String},
+		"userId":    &graphql.Field{Type: graphql.String},
+		"createdAt": &graphql.Field{Type: graphql.DateTime},
+		"content":   &graphql.Field{Type: graphql.String},
 	},
 })
 
@@ -36,6 +40,14 @@ var rootMutation = graphql.NewObject(graphql.ObjectConfig{
 				"name": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			},
 			Resolve: createUser,
+		},
+		"createPost": &graphql.Field{
+			Type: postType,
+			Args: graphql.FieldConfigArgument{
+				"userId":  &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+				"content": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
+			},
+			Resolve: createPost,
 		},
 	},
 })
