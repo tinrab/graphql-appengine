@@ -9,20 +9,34 @@ import (
 	"google.golang.org/appengine"
 )
 
+func makeListField(listType graphql.Output, resolve graphql.FieldResolveFn) *graphql.Field {
+	return &graphql.Field{
+		Type:    listType,
+		Resolve: resolve,
+		Args: graphql.FieldConfigArgument{
+			"limit":  &graphql.ArgumentConfig{Type: graphql.Int},
+			"offset": &graphql.ArgumentConfig{Type: graphql.Int},
+		},
+	}
+}
+
+func makeNodeListType(name string, nodeType *graphql.Object) *graphql.Object {
+	return graphql.NewObject(graphql.ObjectConfig{
+		Name: name,
+		Fields: graphql.Fields{
+			"nodes":      &graphql.Field{Type: graphql.NewList(nodeType)},
+			"totalCount": &graphql.Field{Type: graphql.Int},
+		},
+	})
+}
+
 var schema graphql.Schema
 var userType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "User",
 	Fields: graphql.Fields{
-		"id":   &graphql.Field{Type: graphql.String},
-		"name": &graphql.Field{Type: graphql.String},
-		"posts": &graphql.Field{
-			Type:    postListType,
-			Resolve: queryPostsByUser,
-			Args: graphql.FieldConfigArgument{
-				"limit":  &graphql.ArgumentConfig{Type: graphql.Int},
-				"offset": &graphql.ArgumentConfig{Type: graphql.Int},
-			},
-		},
+		"id":    &graphql.Field{Type: graphql.String},
+		"name":  &graphql.Field{Type: graphql.String},
+		"posts": makeListField(makeNodeListType("PostList", postType), queryPostsByUser),
 	},
 })
 var postType = graphql.NewObject(graphql.ObjectConfig{
@@ -32,13 +46,6 @@ var postType = graphql.NewObject(graphql.ObjectConfig{
 		"userId":    &graphql.Field{Type: graphql.String},
 		"createdAt": &graphql.Field{Type: graphql.DateTime},
 		"content":   &graphql.Field{Type: graphql.String},
-	},
-})
-var postListType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "PostList",
-	Fields: graphql.Fields{
-		"nodes":      &graphql.Field{Type: graphql.NewList(postType)},
-		"totalCount": &graphql.Field{Type: graphql.Int},
 	},
 })
 
@@ -72,6 +79,10 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 				"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			},
 			Resolve: queryUser,
+		},
+		"posts": &graphql.Field{
+			Type:    makeNodeListType("PostList", postType),
+			Resolve: queryPosts,
 		},
 	},
 })
