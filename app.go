@@ -16,8 +16,12 @@ var userType = graphql.NewObject(graphql.ObjectConfig{
 		"id":   &graphql.Field{Type: graphql.String},
 		"name": &graphql.Field{Type: graphql.String},
 		"posts": &graphql.Field{
-			Type:    graphql.NewList(postType),
+			Type:    postListType,
 			Resolve: queryPostsByUser,
+			Args: graphql.FieldConfigArgument{
+				"limit":  &graphql.ArgumentConfig{Type: graphql.Int},
+				"offset": &graphql.ArgumentConfig{Type: graphql.Int},
+			},
 		},
 	},
 })
@@ -28,6 +32,13 @@ var postType = graphql.NewObject(graphql.ObjectConfig{
 		"userId":    &graphql.Field{Type: graphql.String},
 		"createdAt": &graphql.Field{Type: graphql.DateTime},
 		"content":   &graphql.Field{Type: graphql.String},
+	},
+})
+var postListType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "PostList",
+	Fields: graphql.Fields{
+		"nodes":      &graphql.Field{Type: graphql.NewList(postType)},
+		"totalCount": &graphql.Field{Type: graphql.Int},
 	},
 })
 
@@ -58,13 +69,9 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 		"user": &graphql.Field{
 			Type: userType,
 			Args: graphql.FieldConfigArgument{
-				"id": &graphql.ArgumentConfig{Type: graphql.String},
+				"id": &graphql.ArgumentConfig{Type: graphql.NewNonNull(graphql.String)},
 			},
 			Resolve: queryUser,
-		},
-		"users": &graphql.Field{
-			Type:    graphql.NewList(userType),
-			Resolve: queryUsers,
 		},
 	},
 })

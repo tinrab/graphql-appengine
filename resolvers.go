@@ -9,6 +9,11 @@ import (
 	"google.golang.org/appengine/datastore"
 )
 
+type PostListResult struct {
+	Nodes      []Post `json:"nodes"`
+	TotalCount int    `json:"totalCount"`
+}
+
 func createUser(params graphql.ResolveParams) (interface{}, error) {
 	ctx := params.Context
 	name, _ := params.Args["name"].(string)
@@ -40,20 +45,6 @@ func queryUser(params graphql.ResolveParams) (interface{}, error) {
 	return User{}, nil
 }
 
-func queryUsers(params graphql.ResolveParams) (interface{}, error) {
-	ctx := params.Context
-	query := datastore.NewQuery("User")
-	var users []User
-	if keys, err := query.GetAll(ctx, &users); err != nil {
-		return users, err
-	} else {
-		for i, key := range keys {
-			users[i].ID = strconv.FormatInt(key.IntID(), 10)
-		}
-	}
-	return users, nil
-}
-
 func createPost(params graphql.ResolveParams) (interface{}, error) {
 	ctx := params.Context
 	content, _ := params.Args["content"].(string)
@@ -71,18 +62,27 @@ func createPost(params graphql.ResolveParams) (interface{}, error) {
 
 func queryPostsByUser(params graphql.ResolveParams) (interface{}, error) {
 	ctx := params.Context
+
 	query := datastore.NewQuery("Post")
-	var posts []Post
+	if limit, ok := params.Args["limit"].(int); ok {
+		query = query.Limit(limit)
+	}
+	if offset, ok := params.Args["offset"].(int); ok {
+		query = query.Offset(offset)
+	}
+
+	var result PostListResult
 	user, ok := params.Source.(*User)
 	if ok {
-		query.Filter("UserID =", user.ID)
-		if keys, err := query.GetAll(ctx, &posts); err != nil {
-			return posts, err
+		query = query.Filter("UserID =", user.ID)
+		if keys, err := query.GetAll(ctx, &result.Nodes); err != nil {
+			return result, err
 		} else {
 			for i, key := range keys {
-				posts[i].ID = strconv.FormatInt(key.IntID(), 10)
+				result.Nodes[i].ID = strconv.FormatInt(key.IntID(), 10)
 			}
+			result.TotalCount = len(result.Nodes)
 		}
 	}
-	return posts, nil
+	return result, nil
 }
