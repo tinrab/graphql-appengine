@@ -80,10 +80,7 @@ var rootQuery = graphql.NewObject(graphql.ObjectConfig{
 			},
 			Resolve: queryUser,
 		},
-		"posts": &graphql.Field{
-			Type:    makeNodeListType("PostList", postType),
-			Resolve: queryPosts,
-		},
+		"posts": makeListField(makeNodeListType("PostList", postType), queryPosts),
 	},
 })
 

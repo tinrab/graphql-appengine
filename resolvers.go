@@ -89,6 +89,7 @@ func queryPostsByUser(params graphql.ResolveParams) (interface{}, error) {
 }
 
 func queryPostList(ctx context.Context, query *datastore.Query) (PostListResult, error) {
+	query = query.Order("-CreatedAt")
 	var result PostListResult
 	if keys, err := query.GetAll(ctx, &result.Nodes); err != nil {
 		return result, err
